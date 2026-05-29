@@ -2,127 +2,60 @@
   <div id="app">
     <div class="todo-container">
       <header class="todo-header">
-        <h1>📝 Todo List</h1>
+        <h1>Todo List</h1>
         <p class="subtitle">Stay organized, stay focused</p>
       </header>
 
       <div class="todo-input-section">
         <input
-          v-model="newTask"
-          @keyup.enter="addTask"
+          v-model="newLabel"
+          @keyup.enter="addItem"
           type="text"
           placeholder="Add a new task..."
           class="todo-input"
         />
-        <button @click="addTask" class="add-btn">Add</button>
+        <button @click="addItem" class="add-btn">Add</button>
       </div>
 
-      <div class="todo-filters">
-        <button
-          v-for="filter in filters"
-          :key="filter"
-          @click="currentFilter = filter"
-          :class="['filter-btn', { active: currentFilter === filter }]"
-        >
-          {{ filter }}
-        </button>
-      </div>
-
-      <ul class="todo-list" v-if="filteredTasks.length > 0">
-        <li
-          v-for="task in filteredTasks"
-          :key="task.id"
-          :class="['todo-item', { completed: task.done }]"
-        >
-          <input
-            type="checkbox"
-            :checked="task.done"
-            @change="toggleTask(task.id)"
-            class="todo-checkbox"
-          />
-          <span class="todo-text">{{ task.text }}</span>
-          <button @click="removeTask(task.id)" class="delete-btn">✕</button>
-        </li>
-      </ul>
-
-      <p v-else class="empty-state">No tasks here. Add one above!</p>
-
-      <footer class="todo-footer" v-if="tasks.length > 0">
-        <span>{{ pendingCount }} task(s) remaining</span>
-        <button
-          v-if="completedCount > 0"
-          @click="clearCompleted"
-          class="clear-btn"
-        >
-          Clear completed
-        </button>
-      </footer>
+      <ToDoList :items="items" @toggle="toggleItem" />
     </div>
   </div>
 </template>
 
-<script>
-import { ref, computed } from 'vue'
+<script lang="ts">
+import { defineComponent, ref, watch } from 'vue'
+import type { TodoItem } from './types/todo'
+import ToDoList from './components/ToDoList.vue'
 
-export default {
+const STORAGE_KEY = 'vue-todo-items'
+
+export default defineComponent({
   name: 'App',
+  components: { ToDoList },
   setup() {
-    const newTask = ref('')
-    const tasks = ref([])
-    const currentFilter = ref('All')
-    const filters = ['All', 'Active', 'Completed']
+    const stored = localStorage.getItem(STORAGE_KEY)
+    const items = ref<TodoItem[]>(stored ? JSON.parse(stored) : [])
+    const newLabel = ref('')
 
-    const filteredTasks = computed(() => {
-      if (currentFilter.value === 'Active') {
-        return tasks.value.filter(t => !t.done)
-      } else if (currentFilter.value === 'Completed') {
-        return tasks.value.filter(t => t.done)
-      }
-      return tasks.value
-    })
+    watch(items, (val) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(val))
+    }, { deep: true })
 
-    const pendingCount = computed(() => tasks.value.filter(t => !t.done).length)
-    const completedCount = computed(() => tasks.value.filter(t => t.done).length)
-
-    function addTask() {
-      const text = newTask.value.trim()
-      if (!text) return
-      tasks.value.push({
-        id: Date.now(),
-        text,
-        done: false
-      })
-      newTask.value = ''
+    function addItem() {
+      const label = newLabel.value.trim()
+      if (!label) return
+      items.value.push({ id: Date.now(), label, checked: false })
+      newLabel.value = ''
     }
 
-    function toggleTask(id) {
-      const task = tasks.value.find(t => t.id === id)
-      if (task) task.done = !task.done
+    function toggleItem(id: number) {
+      const item = items.value.find(i => i.id === id)
+      if (item) item.checked = !item.checked
     }
 
-    function removeTask(id) {
-      tasks.value = tasks.value.filter(t => t.id !== id)
-    }
-
-    function clearCompleted() {
-      tasks.value = tasks.value.filter(t => !t.done)
-    }
-
-    return {
-      newTask,
-      tasks,
-      currentFilter,
-      filters,
-      filteredTasks,
-      pendingCount,
-      completedCount,
-      addTask,
-      toggleTask,
-      removeTask,
-      clearCompleted
-    }
+    return { items, newLabel, addItem, toggleItem }
   }
-}
+})
 </script>
 
 <style>
@@ -173,7 +106,7 @@ body {
 .todo-input-section {
   display: flex;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .todo-input {
@@ -204,106 +137,5 @@ body {
 
 .add-btn:hover {
   background: #5a6fd6;
-}
-
-.todo-filters {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.filter-btn {
-  flex: 1;
-  padding: 8px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
-  color: #666;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.filter-btn.active {
-  border-color: #667eea;
-  background: #667eea;
-  color: white;
-}
-
-.todo-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.todo-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  background: #f8f9ff;
-  border-radius: 10px;
-  transition: opacity 0.2s;
-}
-
-.todo-item.completed .todo-text {
-  text-decoration: line-through;
-  color: #aaa;
-}
-
-.todo-checkbox {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: #667eea;
-}
-
-.todo-text {
-  flex: 1;
-  font-size: 0.95rem;
-  color: #2d2d2d;
-}
-
-.delete-btn {
-  background: none;
-  border: none;
-  color: #ccc;
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  transition: color 0.2s;
-}
-
-.delete-btn:hover {
-  color: #e53e3e;
-}
-
-.empty-state {
-  text-align: center;
-  color: #bbb;
-  padding: 30px 0;
-  font-size: 0.95rem;
-}
-
-.todo-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
-  color: #888;
-  font-size: 0.85rem;
-}
-
-.clear-btn {
-  background: none;
-  border: none;
-  color: #e53e3e;
-  cursor: pointer;
-  font-size: 0.85rem;
-  text-decoration: underline;
 }
 </style>
